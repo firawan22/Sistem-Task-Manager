@@ -1,0 +1,49 @@
+version: "3.9"
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+  user-service:
+    build: ./user-service
+    container_name: user-service
+    command: npm run start:prod
+    ports:
+      - "3001:3001"
+    depends_on:
+      - rabbitmq
+    environment:
+      RABBITMQ_URI: amqp://guest:guest@rabbitmq:5672
+      PORT: 3001
+
+  task-service:
+    build: ./tasks-service
+    container_name: task-service
+    command: npm run start:prod
+    ports:
+      - "3002:3002"
+    depends_on:
+      - rabbitmq
+    environment:
+      RABBITMQ_URI: amqp://guest:guest@rabbitmq:5672
+      PORT: 3002
+
+  frontend:
+    image: php:8.2-cli
+    container_name: laravel-frontend
+    working_dir: /var/www/html
+    volumes:
+      - ./frontend/laravel-app:/var/www/html
+    ports:
+      - "8000:8000"
+    command: php artisan serve --host=0.0.0.0 --port=8000
+    depends_on:
+      - user-service
+      - task-service
